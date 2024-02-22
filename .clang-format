@@ -1,0 +1,7 @@
+BasedOnStyle: Chromium
+IndentAccessModifiers: true
+IndentWidth: 2
+UseTab: Never
+ColumnLimit: 100
+AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
