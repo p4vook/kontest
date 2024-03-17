@@ -9,6 +9,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 -g")
 
 find_package(Catch2 3 REQUIRED)
 
-foreach(target "Stack" "String" "BigInteger" "Geometry" "Matrix" "Deque") 
+foreach(target "Stack" "String" "BigInteger" "Geometry" "Matrix" "Deque" "List") 
   add_subdirectory("${target}")
 endforeach()
