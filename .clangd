@@ -1,0 +1,28 @@
+Diagnostics:
+  ClangTidy:
+    Add:
+      - 'modernize-*'
+      - 'bugprone-*'
+      - 'cppcoreguidelines-*'
+      - 'misc-*'
+      - 'performance-*'
+      - 'google-readability-casting'
+      - 'readability-identifier-naming'
+      - 'readability-identifier-length*'
+      - 'readability-misleading-indentation'
+      - 'readability-suspicious-call-argument'
+    Remove:
+      - 'cppcoreguidelines-pro-bounds*'
+      - 'modernize-use-trailing-return-type'
+      - 'bugprone-easily-swappable*'
+      - 'misc-no-recursion'
+    CheckOptions: 
+      readability-identifier-naming.FunctionCase: lower_case
+      readability-identifier-naming.VariableCase: lower_case
+      readability-identifier-naming.ParameterCase: lower_case
+      readability-identifier-naming.ParameterIgnoredRegexp: ".*_"
+      readability-identifier-naming.MemberCase: lower_case
+      readability-identifier-naming.MemberIgnoredRegexp: ".*_"
+      readability-identifier-naming.ConstantCase: UPPER_CASE
+      readability-identifier-naming.ClassCase: CamelCase
+      readability-identifier-length.MinimumLoopCounterNameLength: 0

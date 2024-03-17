@@ -1,0 +1,5 @@
+Diagnostics:
+    ClangTidy:
+        CheckOptions:
+            readability-identifier-naming.MemberCase: camelBack
+            readability-identifier-naming.FunctionCase: camelBack
