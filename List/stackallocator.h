@@ -6,16 +6,19 @@
 #include <span>
 
 template <size_t Extent = std::dynamic_extent>
-struct StackStorage {};
+class StackStorage {};
 
 template <>
-struct StackStorage<std::dynamic_extent> {
+class StackStorage<std::dynamic_extent> {
     using span_type = std::span<char, std::dynamic_extent>;
+
+  private:
     span_type buffer;
     span_type::size_type current_size{};
 
+  public:
     template <typename T, size_t E>
-    friend struct StackAllocator;
+    friend class StackAllocator;
 
     StackStorage() = delete;
 
@@ -35,21 +38,19 @@ struct StackStorage<std::dynamic_extent> {
 
 template <size_t Extent>
   requires(Extent != std::dynamic_extent)
-struct StackStorage<Extent> {
+class StackStorage<Extent> {
     using span_type = std::span<char, Extent>;
     span_type::size_type current_size{};
 
     template <typename T, size_t E>
-    friend struct StackAllocator;
+    friend class StackAllocator;
 
   private:
-    char* bambambam;
-    char data[Extent];
-
-  public:
+    std::array<char, Extent> data;
     span_type buffer;
 
-    StackStorage() noexcept : bambambam{data}, data{}, buffer{bambambam, Extent} {
+  public:
+    StackStorage() noexcept : buffer(data) {
     }
 
     StackStorage(const StackStorage<Extent>& other) = delete;
@@ -64,13 +65,16 @@ struct StackStorage<Extent> {
 };
 
 template <typename T, size_t Extent>
-struct StackAllocator {
+class StackAllocator {
   private:
     using span_type = StackStorage<Extent>::span_type;
 
-  public:
-    StackStorage<Extent>* storage;  // FIXME should this be public?
+    StackStorage<Extent>* storage;
+                                    
+    template <typename U, size_t E>
+    friend class StackAllocator;
 
+  public:
     using value_type = T;
     using size_type = span_type::size_type;
     using pointer = T*;
@@ -183,9 +187,7 @@ struct List {
             : BaseIterator(iterator.base_node) {
         }
 
-        constexpr BaseIterator(const BaseIterator<IsConst>& iterator)
-            : BaseIterator(iterator.base_node) {
-        }
+        constexpr BaseIterator(const BaseIterator<IsConst>& iterator) = default;
 
         constexpr BaseIterator& operator=(const BaseIterator<false>& iterator)
           requires(IsConst)
@@ -194,10 +196,7 @@ struct List {
           return *this;
         }
 
-        constexpr BaseIterator& operator=(const BaseIterator<IsConst>& iterator) {
-          base_node = iterator.base_node;
-          return *this;
-        }
+        constexpr BaseIterator& operator=(const BaseIterator<IsConst>& iterator) = default;
 
         constexpr reference operator*() const {
           return static_cast<node_type>(base_node)->value;
@@ -240,7 +239,7 @@ struct List {
 
     using node_alloc = std::allocator_traits<Allocator>::template rebind_alloc<Node>;
     using node_traits = std::allocator_traits<node_alloc>;
-    node_alloc alloc;
+    [[no_unique_address]] node_alloc alloc;
 
   public:
     using iterator = BaseIterator<false>;
@@ -255,7 +254,7 @@ struct List {
     }
 
   private:
-    void insert(const_iterator pos, BaseNode* node) {
+    void link(const_iterator pos, BaseNode* node) {
       node->previous = pos.base_node->previous;
       node->next = pos.base_node;
       node->previous->next = node;
@@ -265,20 +264,7 @@ struct List {
 
   public:
     iterator insert(const_iterator pos, const T& value) {
-      Node* inserted = nullptr;
-      try {
-        inserted = node_traits::allocate(alloc, 1);
-        node_traits::construct(alloc, inserted, value);
-      } catch (...) {
-        if (inserted) {
-          node_traits::deallocate(alloc, inserted, 1);
-        }
-        throw;
-      }
-
-      auto inserted_base = static_cast<BaseNode*>(inserted);
-      insert(pos, inserted_base);
-      return inserted;
+      return emplace(pos, value);
     }
 
     template <typename... Args>
@@ -286,7 +272,7 @@ struct List {
       Node* emplaced = nullptr;
       try {
         emplaced = node_traits::allocate(alloc, 1);
-        node_traits::construct(alloc, emplaced, args...);
+        node_traits::construct(alloc, emplaced, std::forward<Args>(args)...);
       } catch (...) {
         if (emplaced) {
           node_traits::deallocate(alloc, emplaced, 1);
@@ -295,7 +281,7 @@ struct List {
       }
 
       auto emplaced_base = static_cast<BaseNode*>(emplaced);
-      insert(pos, emplaced_base);
+      link(pos, emplaced_base);
       return emplaced;
     }
 
