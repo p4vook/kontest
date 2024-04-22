@@ -70,7 +70,7 @@ class StackAllocator {
     using span_type = StackStorage<Extent>::span_type;
 
     StackStorage<Extent>* storage;
-                                    
+
     template <typename U, size_t E>
     friend class StackAllocator;
 
@@ -113,16 +113,6 @@ class StackAllocator {
     constexpr void deallocate(pointer ptr [[maybe_unused]],
                               size_type count [[maybe_unused]]) noexcept {
       // do nothing
-    }
-
-    template <typename U, typename... Args>
-    constexpr void construct(U* ptr, const Args&... args) {
-      new (ptr) U(args...);
-    }
-
-    template <typename U>
-    constexpr void destroy(U* ptr) {
-      ptr->~U();
     }
 
     constexpr friend bool operator==(const StackAllocator<T, Extent>& lhs,
@@ -270,13 +260,11 @@ struct List {
     template <typename... Args>
     iterator emplace(const_iterator pos, Args&&... args) {
       Node* emplaced = nullptr;
+      emplaced = node_traits::allocate(alloc, 1);
       try {
-        emplaced = node_traits::allocate(alloc, 1);
         node_traits::construct(alloc, emplaced, std::forward<Args>(args)...);
       } catch (...) {
-        if (emplaced) {
-          node_traits::deallocate(alloc, emplaced, 1);
-        }
+        node_traits::deallocate(alloc, emplaced, 1);
         throw;
       }
 
@@ -285,7 +273,7 @@ struct List {
       return emplaced;
     }
 
-    iterator erase(const_iterator pos) {
+    iterator erase(const_iterator pos) noexcept {
       pos.base_node->previous->next = pos.base_node->next;
       pos.base_node->next->previous = pos.base_node->previous;
 
@@ -345,11 +333,11 @@ struct List {
       return rend();
     }
 
-    void pop_back() {
+    void pop_back() noexcept {
       erase(std::prev(end()));
     }
 
-    void pop_front() {
+    void pop_front() noexcept {
       erase(begin());
     }
 
@@ -372,12 +360,12 @@ struct List {
     }
 
     [[nodiscard]] bool empty() const {
-      return begin() == end();
+      return size() == 0;
     }
 
-    void clear() {
+    void clear() noexcept {
       while (!empty()) {
-        erase(begin());
+        pop_front();
       }
     }
 
@@ -394,37 +382,22 @@ struct List {
     List(const Allocator& alloc_) : alloc(alloc_) {
     }
 
-    List(size_t count, const T& value, const Allocator& alloc_) : alloc(alloc_) {
-      try {
-        while (size() < count) {
-          push_back(value);
-        }
-      } catch (...) {
-        clear();
-        throw;
+    List(size_t count, const T& value, const Allocator& alloc_) : List(alloc_) {
+      while (size() < count) {
+        push_back(value);
       }
     }
 
-    List(size_t count, const Allocator& alloc_) : alloc(alloc_) {
-      try {
-        while (size() < count) {
-          emplace_back();
-        }
-      } catch (...) {
-        clear();
-        throw;
+    List(size_t count, const Allocator& alloc_) : List(alloc_) {
+      while (size() < count) {
+        emplace_back();
       }
     }
 
     List(const List& other)
-        : alloc(node_traits::select_on_container_copy_construction(other.alloc)) {
-      try {
-        for (const_iterator it = other.begin(), e = other.end(); it != e; ++it) {
-          push_back(*it);
-        }
-      } catch (...) {
-        clear();
-        throw;
+        : List(node_traits::select_on_container_copy_construction(other.alloc)) {
+      for (const T& val : other) {
+        push_back(val);
       }
     }
 
@@ -444,8 +417,16 @@ struct List {
           *it = *first;
         }
         if (it == e) {
-          for (; first != last; ++first, static_cast<void>(++it)) {
-            it = insert(it, *first);
+          try {
+            for (; first != last; ++first, static_cast<void>(++it)) {
+              it = insert(it, *first);
+            }
+          } catch (...) {
+            const_iterator b = other.begin();
+            for (; first != b; --first) {
+              pop_back();
+            }
+            throw;
           }
         } else {
           for (; it != e;) {
