@@ -1,5 +1,5 @@
 #include <catch2/catch_all.hpp>
-#include "shared_ptr.h"
+#include "smart_pointers.h"
 
 TEST_CASE("simple test") {
   auto kek = makeShared<int>(10);
