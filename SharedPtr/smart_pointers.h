@@ -35,7 +35,7 @@ class SharedPtr {
         using T_Alloc = std::allocator_traits<Alloc>::template rebind_alloc<T>;
         using T_Traits = std::allocator_traits<T_Alloc>;
 
-        alignas(T) std::array<char, sizeof(T)> buffer;
+        alignas(T) std::array<std::byte, sizeof(T)> buffer;
         [[no_unique_address]] T_Alloc alloc;
 
       public:
@@ -51,11 +51,11 @@ class SharedPtr {
           // T_Traits::construct(alloc, ptr(), std::forward<Args>(args)...);
         }
 
-        void destroy_object() noexcept override {
+        void destroy_object() noexcept final {
           T_Traits::destroy(alloc, ptr());
         }
 
-        void destroy_self() noexcept override {
+        void destroy_self() noexcept final {
           using SelfAlloc = std::allocator_traits<Alloc>::template rebind_alloc<ObjectControlBlock>;
           using SelfTraits = std::allocator_traits<SelfAlloc>;
           using SelfPointer = std::pointer_traits<typename SelfTraits::pointer>;
@@ -77,12 +77,12 @@ class SharedPtr {
             : CountControlBlock(), ptr(ptr), del(std::move(del)), alloc(std::move(alloc)) {
         }
 
-        void destroy_object() noexcept override {
+        void destroy_object() noexcept final {
           del(ptr);
           del.~Deleter();
         }
 
-        void destroy_self() noexcept override {
+        void destroy_self() noexcept final {
           using SelfAlloc =
               std::allocator_traits<Alloc>::template rebind_alloc<PointerControlBlock>;
           using SelfTraits = std::allocator_traits<SelfAlloc>;
@@ -268,7 +268,7 @@ class SharedPtr {
     }
 
     inline SharedPtr& operator=(SharedPtr&& other) noexcept {
-      SharedPtr<T>(std::move(other)).swap(*this);
+      SharedPtr(std::move(other)).swap(*this);
       return *this;
     }
 
@@ -377,7 +377,7 @@ class WeakPtr {
     }
 
     inline WeakPtr& operator=(WeakPtr&& other) noexcept {
-      WeakPtr<T>(std::move(other)).swap(*this);
+      WeakPtr(std::move(other)).swap(*this);
       return *this;
     }
 
